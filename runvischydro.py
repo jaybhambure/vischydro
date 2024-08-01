@@ -85,7 +85,7 @@ def runcode(xarray, initialdata, data, runcommand='./vischydro', inputs='inputs.
     runcommand_array = runcommand.split()
     command = runcommand_array + ['-inputs', inputs] + opts[:] 
     print("Executing command: ")
-    print(command)
+    print(" ".join(command))
     if actually_run:
         subprocess.call(command)
 

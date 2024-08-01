@@ -32,7 +32,7 @@ xarray, edensity = rv.ic1(rv.data, A=0.48, delta=0.12, w=25 )
 # The inputs are read from the file myinputs.json
 #
 # On Derek's machine runcommand is mpiexec-mpich-clang17 -n 1 ./vischyro'
-rv.runcode(xarray, edensity, rv.data, runcommand='mpiexec -n 1 ./vischydro', inputs='myinputs.json')
+rv.runcode(xarray, edensity, rv.data, runcommand='mpiexec -n 1 ./vischydro -ksp_monitor_error -log_view', inputs='myinputs.json')
 
 # Open the HDF5 file which is used for input and output
 with h5py.File('vischydro_fig1.h5', 'r') as file:

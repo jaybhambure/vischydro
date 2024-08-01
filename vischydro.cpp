@@ -636,8 +636,7 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   VischydroNode *aug;
   DMDAVecGetArray(run->domain, u, &aug);
 
-  VischydroNode *audot;
-  DMDAVecGetArray(run->domain, udot, &audot);
+  VecCopy(udot, F) ;
   VischydroNode *aF;
   DMDAVecGetArray(run->domain, F, &aF);
 
@@ -647,15 +646,10 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   // Loop over the grid and call idealHydroCellSolve
   for (int i = ixs-1; i < ixs + ixm+1; i++) {
     idealHydroCellSolve(au[i].e, au[i], run->eos);
-    
-    if ( not (i == ixs-1 or i == ixs + ixm)) {
-      idealHydroCellIFunction(au[i].e, aug[i], run->eos);
-    }
   }
 
   double etabys = run->get_inputs("eta_over_s").asDouble() ;
   double dx = run->dx;
-  VecCopy(udot, F) ;
   for (int i=ixs; i<ixs+ixm; i++) {
 
     double sigmap = 0.5 * (sigmaxxxx(au[i+1], etabys) + sigmaxxxx(au[i], etabys)) / (dx * dx)  ;
@@ -664,8 +658,6 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
     aF[i].M -= (sigmap * (au[i+1].bx()- au[i].bx()) - sigmam * (au[i].bx() - au[i-1].bx())) ;
   }
   DMDAVecRestoreArray(run->domain, run->solution_local, &au);
-  DMDAVecRestoreArray(run->domain, u, &aug);
-  DMDAVecRestoreArray(run->domain, udot, &audot);
   DMDAVecRestoreArray(run->domain, F, &aF);
   return 0;
 }
