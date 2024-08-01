@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include <array>
 #include "json/json.h"
 #include "petscdmda.h"

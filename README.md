@@ -18,17 +18,20 @@ pkg-config --libs petsc
 
 # Example 1
 ```
-mpicxx -o petsc1.exe `pkg-config --cflags` petsc1.cpp `pkg-config --libs`
-mpiexec  ./petsc1.exe
+mpicxx -o petsc1.exe `pkg-config --cflags petsc` petsc1.cpp `pkg-config --libs petsc`
+mpiexec -n 2 ./petsc1.exe
 ```
 # Example 2 with hdf5
 ```
-mpicxx  -o petsc2.exe `pkg-config --cflags` petsc2.cpp `pkg-config --libs`
-mpiexec  ./petsc2.exe
+mpicxx  -o petsc2.exe `pkg-config --cflags petsc` petsc2.cpp `pkg-config --libs petsc`
+mpiexec -n 1  ./petsc2.exe
 ```
-# The vischydro code
+# Compiling vischydro code
 ```
-mpicxx -o vischydro `pkg-config --cflags` vischydro.cpp jsoncpp.cpp  `pkg-config --libs`
-python vischydro_example.py 
+mpicxx -o vischydro `pkg-config --cflags petsc` vischydro.cpp jsoncpp.cpp  `pkg-config --libs petsc`
 ```
-
+#  Run the vischydro cdoe
+You should edit the file vischydro_example.py appropriately  modifying the run command and parameters
+```
+python vischydro_example.py
+```

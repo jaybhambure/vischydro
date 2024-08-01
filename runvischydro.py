@@ -53,14 +53,15 @@ options = {
     '-ts_adapt_type': 'none', 
 }
 
-# Dump the current input data to a json file, which serves as input to the
-# vischydro code.  Additional arguments can be passed to the code by adding
-# them to the extra_args list and the command line. 
+# Dump the current input data to a json file (default name is
+# 'inputs.json'), which serves as input to the vischydro code.
+# Additional arguments can be passed to the code on the command
+# line by adding them to the options data structure, see option.
 #
 # The initialdata array is written to an HDF5 file with filename
-# data['iofilename'], creating an array initialdata. This is then read by the
-# vischydro code.
-def runcode(xarray, initialdata, data, inputs='inputs.json'):
+# data['iofilename'], creating an array initialdata. This is then
+# read by the vischydro code. 
+def runcode(xarray, initialdata, data, runcommand='./vischydro', inputs='inputs.json', actually_run=True):
 
     with open(inputs, 'w') as file:
         json.dump(data, file, indent=4)
@@ -74,16 +75,19 @@ def runcode(xarray, initialdata, data, inputs='inputs.json'):
         file.attrs.update(data)
         file.attrs['dt'] = data['cfl_max']*(xarray[1] - xarray[0])
 
-    extra_args = []
+    opts = []
     for kev, val in options.items():
         if val is None or val == '':
-            extra_args += [kev]
+            opts += [kev]
         else:
-            extra_args += [kev, val]
+            opts += [kev, val]
 
-    command = ['./vischydro', '-inputs', inputs] + extra_args[:] 
-    print("Executing command: ", command)
-    subprocess.call(command)
+    runcommand_array = runcommand.split()
+    command = runcommand_array + ['-inputs', inputs] + opts[:] 
+    print("Executing command: ")
+    print(command)
+    if actually_run:
+        subprocess.call(command)
 
 
 # Create a grid of x values based on the data dictionary
@@ -113,34 +117,3 @@ def ic2(data, eps_l=1.0, eps_r=0.1):
     return xarray, initialdata
 
 
-if __name__ == '__main__':
-    # The code will run with the default options. The options can be changed by updating the options dictionary.
-    options.update({'-ts_exact_final_time': 'INTERPOLATE'})
-
-    # construct the initial data in an array
-    xarray, initialdata = ic1(data)
-
-    # Set the values of other paraemters
-    data['eta_over_s'] = 3./(4.0*np.pi) 
-
-    # This data file is the one used to communicate the initial conditions and final cons
-    data['iofilename'] = 'vischydro_fig1.h5'
-
-    # Run the code, with the initial data and the chosen options
-    runcode(xarray, initialdata, data)
-
-    # Open the HDF5 file which is used for input and output
-    with h5py.File('vischydro_fig1.h5', 'r') as file:
-        # Read the 'finaldata' dataset
-        finaldata = file['finaldata'][:]
-        initialdatain = file['initialdatain'][:]
-
-        plt.plot(xarray, finaldata[:, 2], xarray, finaldata[:, 0], '--')
-        ax = plt.gca()
-        ax.set_xlim(-60, 60)
-        ax.set_ylim(0.09, 0.25)
-        plt.legend([r'$\epsilon$', r'$T^{tt}$'])
-        plt.xlabel('x')
-        plt.title(r'$\eta$/s = {}/4$\pi$'.format(data['eta_over_s']*4.0*np.pi)) 
-        plt.show()
-        
