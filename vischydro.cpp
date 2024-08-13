@@ -675,6 +675,7 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
     aF[i].M -= (sigmap * (au[i+1].bx()- au[i].bx()) - sigmam * (au[i].bx() - au[i-1].bx())) ;
   }
   DMDAVecRestoreArray(run->domain, run->solution_local, &au);
+  DMDAVecRestoreArray(run->domain, run->solution_last, &au_last);
   DMDAVecRestoreArray(run->domain, F, &aF);
   return 0;
 }
