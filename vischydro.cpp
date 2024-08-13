@@ -332,6 +332,7 @@ public:
   DM domain;
   Vec solution;
   Vec solution_local;
+  Vec solution_last;
   double xmin, xmax, dx;
 
   TS stepper;
@@ -349,6 +350,7 @@ public:
 
     DMCreateGlobalVector(domain, &solution);
     DMCreateLocalVector(domain, &solution_local);
+    VecDuplicate(solution_local, &solution_last);
 
     // Construct the grid spacing
     xmin = get_inputs("xmin").asDouble();
@@ -417,6 +419,9 @@ public:
       VischydroNode &node = asol[i];
       FillVischydroNode(node, eos);
     }
+    // Fill in the boundary cells and the local last solution based on the initial conditions.
+    DMGlobalToLocal(domain, solution, INSERT_VALUES, solution_last);
+
     DMDAVecRestoreArray(domain, solution, &asol);
     PetscObjectSetName((PetscObject)solution, "initialdatain");
     VecView(solution, H5viewer);
@@ -429,6 +434,7 @@ public:
     TSDestroy(&stepper);
     VecDestroy(&solution);
     VecDestroy(&solution_local);
+    VecDestroy(&solution_last);
     DMDestroy(&domain);
   }
   Json::Value get_inputs(const std::string &key) const {
@@ -443,12 +449,16 @@ PetscErrorCode EulerRHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx) {
   const Vischydro &run = *(Vischydro *)ctx;
 
   // Copy the U into a local array including the boundary values
-  DMGlobalToLocalBegin(run.domain, U, INSERT_VALUES, run.solution_local);
-  DMGlobalToLocalEnd(run.domain, U, INSERT_VALUES, run.solution_local);
+  DMGlobalToLocal(run.domain, U, INSERT_VALUES, run.solution_local);
 
   // Get pointer to local array
   VischydroNode *asol;
   DMDAVecGetArray(run.domain, run.solution_local, &asol);
+  // Get pointer to local array
+  VischydroNode *asol_last;
+  DMDAVecGetArray(run.domain, run.solution_last, &asol_last);
+  
+
   VischydroNode *ag;
   DMDAVecGetArray(run.domain, G, &ag);
   int ixs, ixm ;
@@ -459,7 +469,8 @@ PetscErrorCode EulerRHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx) {
 
   // Solve for the internal state
   for (int i = ixs-2; i < ixs + ixm +2; i++) {
-    idealHydroCellSolve(asol[i].e, asol[i], run.eos);
+    idealHydroCellSolve(asol_last[i].e, asol[i], run.eos);
+    asol_last[i] = asol[i];
   }
 
   //Compute the flux in the x-direction
@@ -518,6 +529,7 @@ PetscErrorCode EulerRHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx) {
   
   // Return the pointer to the local array back to the memory space
   DMDAVecRestoreArray(run.domain, run.solution_local, &asol);
+  DMDAVecRestoreArray(run.domain, run.solution_last, &asol_last);
   DMDAVecRestoreArray(run.domain, G, &ag);
   return 0;
 };
@@ -529,13 +541,17 @@ PetscErrorCode PostStepInversion(TS ts) {
 
   VischydroNode *au;
   DMDAVecGetArray(run.domain, run.solution, &au);
+  VischydroNode *au_last;
+  DMDAVecGetArray(run.domain, run.solution_last, &au_last);
   int ixs, ixm;
   DMDAGetCorners(run.domain, &ixs, 0, 0, &ixm, 0, 0);
+  
   for (int i = ixs; i < ixs + ixm; i++) {
-    VischydroNode &node = au[i];
-    idealHydroCellSolve(node.e, node, run.eos);
+    idealHydroCellSolve(au_last[i].e, au[i], run.eos);
+    au_last[i] = au[i];
   }
   DMDAVecRestoreArray(run.domain, run.solution, &au);
+  DMDAVecRestoreArray(run.domain, run.solution_last, &au_last);
   return 0;
 }
 
@@ -632,11 +648,10 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   VischydroNode *au;
   DMDAVecGetArray(run->domain, run->solution_local, &au);
 
-  // Global array is updated during the iteration 
-  VischydroNode *aug;
-  DMDAVecGetArray(run->domain, u, &aug);
+  // Local array with the boundary cells guess
+  VischydroNode *au_last;
+  DMDAVecGetArray(run->domain, run->solution_last, &au_last);
 
-  VecCopy(udot, F) ;
   VischydroNode *aF;
   DMDAVecGetArray(run->domain, F, &aF);
 
@@ -645,11 +660,13 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   
   // Loop over the grid and call idealHydroCellSolve
   for (int i = ixs-1; i < ixs + ixm+1; i++) {
-    idealHydroCellSolve(au[i].e, au[i], run->eos);
+    idealHydroCellSolve(au_last[i].e, au[i], run->eos);
+    au_last[i] = au[i];
   }
 
   double etabys = run->get_inputs("eta_over_s").asDouble() ;
   double dx = run->dx;
+  VecCopy(udot, F) ;
   for (int i=ixs; i<ixs+ixm; i++) {
 
     double sigmap = 0.5 * (sigmaxxxx(au[i+1], etabys) + sigmaxxxx(au[i], etabys)) / (dx * dx)  ;
@@ -672,6 +689,9 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
   VischydroNode *au;
   DMDAVecGetArray(run->domain, run->solution_local, &au);
 
+  VischydroNode *au_last;
+  DMDAVecGetArray(run->domain, run->solution_last, &au_last);
+
   double etabys = run->get_inputs("eta_over_s").asDouble() ;
   double dx = run->dx; 
 
@@ -680,6 +700,12 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
 
   int ixs, ixm; 
   DMDAGetCorners(run->domain, &ixs, 0, 0, &ixm, 0, 0);
+  // Loop over the grid and call idealHydroCellSolve
+  for (int i = ixs-1; i < ixs + ixm+1; i++) {
+    idealHydroCellSolve(au_last[i].e, au[i], run->eos);
+    au_last[i] = au[i];
+  }
+
   for (int i =ixs; i < ixs + ixm; i++) {
     for (int c = 0 ; c < VischydroNode::NDOF; c++) {
       // Define the coordinates of the row
@@ -739,7 +765,8 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
       MatSetValuesStencil(P, 1, &row, nc, column, value, INSERT_VALUES);
     }
   }
-  DMDAVecRestoreArray(run->domain, u, &au);
+  DMDAVecRestoreArray(run->domain, run->solution_local, &au);
+  DMDAVecRestoreArray(run->domain, run->solution_last, &au_last);
 
   MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(P, MAT_FINAL_ASSEMBLY);
@@ -760,8 +787,8 @@ PetscErrorCode VischydroMonitor(TS ts, PetscInt step, PetscReal time, Vec u, voi
   int nprint = run->get_inputs("steps_per_print").asInt();
   if (step % nprint == 0 ) {
     PetscPrintf(PETSC_COMM_WORLD, "Time, Step: %f %d \n", time, step);
-    PetscObjectSetName((PetscObject)u, "solution");
-    VecView(u, run->H5viewer);
+    PetscObjectSetName((PetscObject)run->solution, "solution");
+    VecView(run->solution, run->H5viewer);
     // Increment the timestep for the hdf5file
     PetscViewerHDF5IncrementTimestep(run->H5viewer);
   }
@@ -823,6 +850,7 @@ int main(int argc, char **argv)
   // the infomation to the hdf5 file at each slice.
   PetscViewerHDF5PushTimestepping(vischydro->H5viewer);
   TSSolve(vischydro->stepper, vischydro->solution);
+  PostStepInversion(vischydro->stepper);
   PetscViewerHDF5PopTimestepping(vischydro->H5viewer);
 
   // Write out the final grid to the hdf5 file 
