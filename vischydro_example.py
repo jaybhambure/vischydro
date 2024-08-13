@@ -10,8 +10,8 @@ print(rv.options)
 
 
 
-# Set the values of other paraemters (see runvischydro.py)
-# The data associate array in the rv module contains
+# Set the values of other paraemters (see runvischydro.py).
+# data is an associate array in the rv module and contains
 # all the parameters which are passed to the program. 
 # Here we override the default value of eta over s
 rv.data['eta_over_s'] = 3./(4.0*np.pi) 
@@ -19,12 +19,14 @@ rv.data['eta_over_s'] = 3./(4.0*np.pi)
 # This data file is the one used to communicate the initial conditions and final conditions
 rv.data['iofilename'] = 'vischydro_fig1.h5'
 
-# print out the values of the parameters passed to the code
+# print out all the values of the parameters passed to the code
+# This structure is stored in a file and the hydro code reads it in
 print("The input passed to vischydro are:")
 print(rv.data)
 
-# construct the initial data in an array. Read the code.
-# this returns the xcoordinates and the initial energy density
+# Construct the initial data in an array. Read the code.
+# this returns the xcoordinates and the initial energy density.
+# I used python for this.
 xarray, edensity = rv.ic1(rv.data, A=0.48, delta=0.12, w=25 )
 #print(xarray, edensity)
 
