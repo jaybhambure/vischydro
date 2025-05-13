@@ -449,20 +449,23 @@ PetscErrorCode EulerRHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx) {
   const Vischydro &run = *(Vischydro *)ctx;
 
   // Copy the U into a local array including the boundary values
-  DMGlobalToLocal(run.domain, U, INSERT_VALUES, run.solution_local);
+  PetscCall(DMGlobalToLocal(run.domain, U, INSERT_VALUES, run.solution_local));
 
   // Get pointer to local array
   VischydroNode *asol;
-  DMDAVecGetArray(run.domain, run.solution_local, &asol);
+  PetscCall(DMDAVecGetArray(run.domain, run.solution_local, &asol));
   // Get pointer to local array
   VischydroNode *asol_last;
-  DMDAVecGetArray(run.domain, run.solution_last, &asol_last);
+  PetscCall(DMDAVecGetArray(run.domain, run.solution_last, &asol_last));
   
 
+  //Compute the flux in the x-direction
+  VecZeroEntries(G);
+
   VischydroNode *ag;
-  DMDAVecGetArray(run.domain, G, &ag);
+  PetscCall(DMDAVecGetArray(run.domain, G, &ag));
   int ixs, ixm ;
-  DMDAGetCorners(run.domain, &ixs, 0, 0, &ixm, 0, 0);
+  PetscCall(DMDAGetCorners(run.domain, &ixs, 0, 0, &ixm, 0, 0));
 
   const double epsilon = 1.e-8;
   limitter slope(limitter::kCenteredMinMod);
@@ -473,8 +476,6 @@ PetscErrorCode EulerRHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx) {
     asol_last[i] = asol[i];
   }
 
-  //Compute the flux in the x-direction
-  VecZeroEntries(G);
   for (int i = ixs; i < ixs + ixm + 1; i++) {
     VischydroNode nL{};
     VischydroNode nR{};
@@ -528,9 +529,9 @@ PetscErrorCode EulerRHSFunction(TS ts, PetscReal t, Vec U, Vec G, void *ctx) {
   }
   
   // Return the pointer to the local array back to the memory space
-  DMDAVecRestoreArray(run.domain, run.solution_local, &asol);
-  DMDAVecRestoreArray(run.domain, run.solution_last, &asol_last);
-  DMDAVecRestoreArray(run.domain, G, &ag);
+  PetscCall(DMDAVecRestoreArray(run.domain, run.solution_local, &asol));
+  PetscCall(DMDAVecRestoreArray(run.domain, run.solution_last, &asol_last));
+  PetscCall(DMDAVecRestoreArray(run.domain, G, &ag));
   return 0;
 };
 
@@ -540,9 +541,9 @@ PetscErrorCode PostStepInversion(TS ts) {
   Vischydro &run = *runptr;
 
   VischydroNode *au;
-  DMDAVecGetArray(run.domain, run.solution, &au);
+  PetscCall(DMDAVecGetArray(run.domain, run.solution, &au));
   VischydroNode *au_last;
-  DMDAVecGetArray(run.domain, run.solution_last, &au_last);
+  PetscCall(DMDAVecGetArray(run.domain, run.solution_last, &au_last));
   int ixs, ixm;
   DMDAGetCorners(run.domain, &ixs, 0, 0, &ixm, 0, 0);
   
@@ -550,8 +551,8 @@ PetscErrorCode PostStepInversion(TS ts) {
     idealHydroCellSolve(au_last[i].e, au[i], run.eos);
     au_last[i] = au[i];
   }
-  DMDAVecRestoreArray(run.domain, run.solution, &au);
-  DMDAVecRestoreArray(run.domain, run.solution_last, &au_last);
+  PetscCall(DMDAVecRestoreArray(run.domain, run.solution, &au));
+  PetscCall(DMDAVecRestoreArray(run.domain, run.solution_last, &au_last));
   return 0;
 }
 
@@ -646,14 +647,11 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   
   // Local array with the boundary cells
   VischydroNode *au;
-  DMDAVecGetArray(run->domain, run->solution_local, &au);
+  PetscCall(DMDAVecGetArray(run->domain, run->solution_local, &au));
 
   // Local array with the boundary cells guess
   VischydroNode *au_last;
-  DMDAVecGetArray(run->domain, run->solution_last, &au_last);
-
-  VischydroNode *aF;
-  DMDAVecGetArray(run->domain, F, &aF);
+  PetscCall(DMDAVecGetArray(run->domain, run->solution_last, &au_last));
 
   int ixs, ixm;
   DMDAGetCorners(run->domain, &ixs, 0, 0, &ixm, 0, 0);
@@ -667,6 +665,9 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   double etabys = run->get_inputs("eta_over_s").asDouble() ;
   double dx = run->dx;
   VecCopy(udot, F) ;
+  VischydroNode *aF;
+  PetscCall(DMDAVecGetArray(run->domain, F, &aF));
+
   for (int i=ixs; i<ixs+ixm; i++) {
 
     double sigmap = 0.5 * (sigmaxxxx(au[i+1], etabys) + sigmaxxxx(au[i], etabys)) / (dx * dx)  ;
@@ -674,9 +675,9 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
 
     aF[i].M -= (sigmap * (au[i+1].bx()- au[i].bx()) - sigmam * (au[i].bx() - au[i-1].bx())) ;
   }
-  DMDAVecRestoreArray(run->domain, run->solution_local, &au);
-  DMDAVecRestoreArray(run->domain, run->solution_last, &au_last);
-  DMDAVecRestoreArray(run->domain, F, &aF);
+  PetscCall(DMDAVecRestoreArray(run->domain, F, &aF));
+  PetscCall(DMDAVecRestoreArray(run->domain, run->solution_local, &au));
+  PetscCall(DMDAVecRestoreArray(run->domain, run->solution_last, &au_last));
   return 0;
 }
 
