@@ -28,7 +28,7 @@ mpiexec -n 1  ./petsc2.exe
 ```
 # Compiling vischydro code
 ```
-mpicxx -o vischydro.exe `pkg-config --cflags petsc` vischydro.cpp jsoncpp.cpp `pkg-config --libs petsc`
+mpicxx -o vischydro `pkg-config --cflags petsc` vischydro.cpp jsoncpp.cpp `pkg-config --libs petsc`
 ```
 #  Run the vischydro cdoe
 You should edit the file vischydro_example.py appropriately  modifying the run command and parameters
