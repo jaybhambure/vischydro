@@ -729,8 +729,9 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
 
         double sigmap = 0.5 * (sigmaxxxx(au[i+1], etabys) + sigmaxxxx(au[i], etabys)) / (dx * dx)  ;
         double sigmam = 0.5 * (sigmaxxxx(au[i], etabys) + sigmaxxxx(au[i-1], etabys)) / (dx * dx) ;
-        double dbxp = 0.5 * (derivative_dbxdm(au[i+1]) + derivative_dbxdm(au[i])) ;
-        double dbxm = 0.5 * (derivative_dbxdm(au[i]) + derivative_dbxdm(au[i-1])) ;
+        double dbxp = derivative_dbxdm(au[i+1]);
+        double dbxm = derivative_dbxdm(au[i-1]);
+        double dbx0 = derivative_dbxdm(au[i]) ;
 
         // i=1
         column[nc].i = i+1 ;
@@ -740,10 +741,11 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
         value[nc++] = -sigmam * dbxm ;
         // i=0
         column[nc].i = i ;
-        value[nc++] = sigmap * dbxp + sigmam * dbxm  + shift ;
+        value[nc++] = sigmap * dbx0 + sigmam * dbx0  + shift ;
       
-        dbxp = 0.5 * (derivative_dbxde(au[i+1]) + derivative_dbxde(au[i])) ;
-        dbxm = 0.5 * (derivative_dbxde(au[i]) + derivative_dbxde(au[i-1])) ;
+        dbxp = derivative_dbxde(au[i+1]);
+        dbxm = derivative_dbxde(au[i-1]);
+        dbx0 = derivative_dbxde(au[i]) ;
 
         // i=1
         column[nc].c = c-1;
@@ -756,7 +758,7 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
         // i=0
         column[nc].c = c-1;
         column[nc].i = i ;
-        value[nc++] = sigmap * dbxp + sigmam * dbxm  ;
+        value[nc++] = sigmap * dbx0 + sigmam * dbx0  ;
 
       } else{
         // i=0
