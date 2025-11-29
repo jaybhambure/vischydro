@@ -1,0 +1,14 @@
+{
+    "NDOF": 7,
+    "NX": 513,
+    "xmin": -80,
+    "xmax": 80,
+    "initial_time": 1.0,
+    "final_time": 16.0,
+    "cfl_max": 0.1,
+    "dt_max": 0.02,
+    "eta_over_s": 0.238732414637843,
+    "iofilename": "bjnbys_3d0_d_5d263789013914324_A_0_w_24d5.h5",
+    "steps_per_print": 10,
+    "bjorken_expansion": true
+}

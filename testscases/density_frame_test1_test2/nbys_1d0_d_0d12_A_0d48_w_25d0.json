@@ -1,0 +1,12 @@
+{
+    "NDOF": 7,
+    "NX": 513,
+    "xmin": -80,
+    "xmax": 80,
+    "initial_time": 0.0,
+    "final_time": 50.0,
+    "cfl_max": 0.1,
+    "eta_over_s": 0.07957747154594767,
+    "iofilename": "nbys_1d0_d_0d12_A_0d48_w_25d0.h5",
+    "steps_per_print": 10
+}

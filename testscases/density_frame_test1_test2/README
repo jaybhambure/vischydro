@@ -1,0 +1,8 @@
+Compares the current working code to a reference simulation based on published results from the density frame.  
+
+The runvischydro.py module must be in the path 
+
+python test1_test2_run.py --testcase test1
+python test1_test2_plot.py --testcase test1
+
+A similar command  runs test2

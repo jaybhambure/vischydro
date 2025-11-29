@@ -1,0 +1,10 @@
+# Script to run bjorken hydro tests with gaussian initial conditions
+# The folllowing script can run either uniform or gaussian bjorken hydro
+# tests. In the uniform case we are comparing the code result to the ODE
+# solution. In the gaussian case we just run and plot the result.
+#
+# The usage is:
+# python bjorkentests.py --testcase uniform
+# or
+# python bjorkentests.py --testcase gaussian
+
