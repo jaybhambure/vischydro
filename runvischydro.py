@@ -19,9 +19,11 @@ input_definition = {
                    "initial_time": 0.,
                    "final_time": 47,
                    "cfl_max": 0.49,
+                   "dt_max": 0.5,
                    "eta_over_s": 1./(4.0*np.pi), 
                    "iofilename": "vischydro.h5",
                    "steps_per_print": 10,
+                   "bjorken_expansion": False
                    }
 
 class FixedDataDictionary(dict):
@@ -73,7 +75,7 @@ def runcode(xarray, initialdata, data, runcommand='./vischydro', inputs='inputs.
         file.create_dataset('initialdata', data=initialdata) 
         file.create_dataset('x', data=xarray) 
         file.attrs.update(data)
-        file.attrs['dt'] = data['cfl_max']*(xarray[1] - xarray[0])
+        file.attrs['dt'] = min(data['dt_max'], data['cfl_max']*(xarray[1] - xarray[0]))
 
     opts = []
     for kev, val in options.items():

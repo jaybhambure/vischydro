@@ -3,16 +3,27 @@ import matplotlib.pyplot as plt
 import h5py
 import runvischydro as rv
 
+# This is the command use to launch the compiled viscous hydro code
+#
+# Examples: runcommand = 'mpiexec-mpich-clang17 -n 1 ./vischydro -log_view'
+
+runcommand = 'mpiexec -n 1 ./vischydro'
+
 # The code will run with the default options. The options can be changed by updating the options dictionary. But you could just leave the defaults
 rv.options.update({'-ts_exact_final_time': 'INTERPOLATE'})
 print("The options passed to vischydro are:")
 print(rv.options)
 
 
-
 # Set the values of other paraemters (see runvischydro.py).
 # data is an associate array in the rv module and contains
 # all the parameters which are passed to the program. 
+# This out all the values of the parameters passed to the code
+# This structure is stored in a file and the hydro code reads it in
+print("The input passed to vischydro are:")
+print(rv.data)
+
+
 # Here we override the default value of eta over s
 rv.data['eta_over_s'] = 3./(4.0*np.pi) 
 
@@ -31,10 +42,10 @@ xarray, edensity = rv.ic1(rv.data, A=0.48, delta=0.12, w=25 )
 #print(xarray, edensity)
 
 # Run the code, with the initial data and the chosen options.
-# The inputs are read from the file myinputs.json
+# The inputs are read from the file inputs.json
 #
 # On Derek's machine runcommand is mpiexec-mpich-clang17 -n 1 ./vischyro'
-rv.runcode(xarray, edensity, rv.data, runcommand='mpiexec -n 1 ./vischydro  -log_view', inputs='myinputs.json')
+rv.runcode(xarray, edensity, rv.data, runcommand=runcommand, inputs='inputs.json')
 
 # Open the HDF5 file which is used for input and output
 with h5py.File('vischydro_fig1.h5', 'r') as file:

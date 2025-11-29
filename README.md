@@ -28,10 +28,11 @@ mpiexec -n 1  ./petsc2.exe
 ```
 # Compiling vischydro code
 ```
-mpicxx -o vischydro -I/home/j/petsc/arch-linux-c-debug/include -I/home/j/petsc/include -I/usr/include/hdf5/serial vischydro.cpp jsoncpp.cpp -L/home/j/petsc/arch-linux-c-debug/lib -lpetsc -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5
+mpicxx -o vischydro `pkg-config --cflags petsc` vischydro.cpp jsoncpp.cpp  `pkg-config --libs petsc`
 ```
-#  Run the vischydro cdoe
+#  Run the vischydro code by hand
 You should edit the file vischydro_example.py appropriately  modifying the run command and parameters
 ```
 python vischydro_example.py
 ```
+This uses python to write out the initial conditions and input files for the subsequent run. It then runs
