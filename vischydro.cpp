@@ -419,10 +419,10 @@ public:
       VischydroNode &node = asol[i];
       FillVischydroNode(node, eos);
     }
+    DMDAVecRestoreArray(domain, solution, &asol);
     // Fill in the boundary cells and the local last solution based on the initial conditions.
     DMGlobalToLocal(domain, solution, INSERT_VALUES, solution_last);
 
-    DMDAVecRestoreArray(domain, solution, &asol);
     PetscObjectSetName((PetscObject)solution, "initialdatain");
     VecView(solution, H5viewer);
     
@@ -642,8 +642,8 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
   auto run = (Vischydro *)context;
 
   // Do communcation and fill up boundary cells
-  DMGlobalToLocalBegin(run->domain, u, INSERT_VALUES, run->solution_local);
-  DMGlobalToLocalEnd(run->domain, u, INSERT_VALUES, run->solution_local);
+  PetscCall(DMGlobalToLocalBegin(run->domain, u, INSERT_VALUES, run->solution_local));
+  PetscCall(DMGlobalToLocalEnd(run->domain, u, INSERT_VALUES, run->solution_local));
   
   // Local array with the boundary cells
   VischydroNode *au;
@@ -684,15 +684,15 @@ PetscErrorCode LHSIFunction(TS ts, PetscReal t, Vec u, Vec udot, Vec F, void *co
 PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift, Mat J, Mat P, void *context)  {
   auto run = (Vischydro *)context;
   // Do communcation and fill up boundary cells
-  DMGlobalToLocalBegin(run->domain, u, INSERT_VALUES, run->solution_local);
-  DMGlobalToLocalEnd(run->domain, u, INSERT_VALUES, run->solution_local);
+  PetscCall(DMGlobalToLocalBegin(run->domain, u, INSERT_VALUES, run->solution_local));
+  PetscCall(DMGlobalToLocalEnd(run->domain, u, INSERT_VALUES, run->solution_local));
 
   // Local array with the boundary cells
   VischydroNode *au;
-  DMDAVecGetArray(run->domain, run->solution_local, &au);
+  PetscCall(DMDAVecGetArray(run->domain, run->solution_local, &au));
 
   VischydroNode *au_last;
-  DMDAVecGetArray(run->domain, run->solution_last, &au_last);
+  PetscCall(DMDAVecGetArray(run->domain, run->solution_last, &au_last));
 
   double etabys = run->get_inputs("eta_over_s").asDouble() ;
   double dx = run->dx; 
@@ -729,8 +729,9 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
 
         double sigmap = 0.5 * (sigmaxxxx(au[i+1], etabys) + sigmaxxxx(au[i], etabys)) / (dx * dx)  ;
         double sigmam = 0.5 * (sigmaxxxx(au[i], etabys) + sigmaxxxx(au[i-1], etabys)) / (dx * dx) ;
-        double dbxp = 0.5 * (derivative_dbxdm(au[i+1]) + derivative_dbxdm(au[i])) ;
-        double dbxm = 0.5 * (derivative_dbxdm(au[i]) + derivative_dbxdm(au[i-1])) ;
+        double dbxp = derivative_dbxdm(au[i+1]);
+        double dbxm = derivative_dbxdm(au[i-1]);
+        double dbx0 = derivative_dbxdm(au[i]) ;
 
         // i=1
         column[nc].i = i+1 ;
@@ -740,10 +741,11 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
         value[nc++] = -sigmam * dbxm ;
         // i=0
         column[nc].i = i ;
-        value[nc++] = sigmap * dbxp + sigmam * dbxm  + shift ;
+        value[nc++] = sigmap * dbx0 + sigmam * dbx0  + shift ;
       
-        dbxp = 0.5 * (derivative_dbxde(au[i+1]) + derivative_dbxde(au[i])) ;
-        dbxm = 0.5 * (derivative_dbxde(au[i]) + derivative_dbxde(au[i-1])) ;
+        dbxp = derivative_dbxde(au[i+1]);
+        dbxm = derivative_dbxde(au[i-1]);
+        dbx0 = derivative_dbxde(au[i]) ;
 
         // i=1
         column[nc].c = c-1;
@@ -756,7 +758,7 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
         // i=0
         column[nc].c = c-1;
         column[nc].i = i ;
-        value[nc++] = sigmap * dbxp + sigmam * dbxm  ;
+        value[nc++] = sigmap * dbx0 + sigmam * dbx0  ;
 
       } else{
         // i=0
@@ -767,8 +769,8 @@ PetscErrorCode LHSIJacobian(TS ts, PetscReal t, Vec u, Vec udot, PetscReal shift
       MatSetValuesStencil(P, 1, &row, nc, column, value, INSERT_VALUES);
     }
   }
-  DMDAVecRestoreArray(run->domain, run->solution_local, &au);
-  DMDAVecRestoreArray(run->domain, run->solution_last, &au_last);
+  PetscCall(DMDAVecRestoreArray(run->domain, run->solution_local, &au));
+  PetscCall(DMDAVecRestoreArray(run->domain, run->solution_last, &au_last));
 
   MatAssemblyBegin(P, MAT_FINAL_ASSEMBLY);
   MatAssemblyEnd(P, MAT_FINAL_ASSEMBLY);
